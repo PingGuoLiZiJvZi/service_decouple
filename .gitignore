@@ -1,0 +1,7 @@
+libbpf-bootstrap/*
+*/build/*	
+*/.output/*
+*log*
+simplebridge/simplebridge
+router/router
+rubbish/*
