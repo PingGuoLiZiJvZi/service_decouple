@@ -1,13 +1,7 @@
 #include "router.skel.h"
 #include "slowpaths.h"
+#include "json_map.h"
 static volatile sig_atomic_t exiting = 0;
-enum
-{
-	SLOWPATH_ARP_REPLY = 1,
-	SLOWPATH_ARP_LOOKUP_MISS,
-	SLOWPATH_TTL_EXCEEDED,
-	SLOWPATH_PKT_FOR_ROUTER
-};
 static int libbpf_print_fn(enum libbpf_print_level level,
 						   const char *format,
 						   va_list args)
@@ -63,16 +57,23 @@ int main(int argc, char **argv)
 	struct perf_buffer *pb = NULL;
 	struct router_bpf *obj;
 	int err;
-	if (init_bridge_ports())
+
+	if (init_json_data("/mnt/disk1/zhouchenxi/service_decouple/router/map_json_1_3"))
 	{
-		fprintf(stderr, "Failed to initialize port\n");
+		fprintf(stderr, "Failed to initialize JSON data\n");
 		return 1;
 	}
+
 	libbpf_set_print(libbpf_print_fn);
 	obj = router_bpf__open();
 	if (!obj)
 	{
 		fprintf(stderr, "failed to open BPF object\n");
+		return 1;
+	}
+	if (init_router_ports())
+	{
+		fprintf(stderr, "Failed to initialize router ports\n");
 		return 1;
 	}
 	printf("成功打开 BPF 对象\n");
@@ -89,6 +90,45 @@ int main(int argc, char **argv)
 		goto cleanup;
 	}
 
+	for (int i = 0; i < port_config_count; i++)
+	{
+		struct r_port rp = {};
+		rp.ip = port_configs[i].ip;
+		rp.netmask = port_configs[i].netmask;
+		for (int j = 0; j < 5; j++)
+		{
+			rp.secondary_ip[j] = port_configs[i].secondary_ip[j];
+			rp.secondary_netmask[j] = port_configs[i].secondary_netmask[j];
+		}
+		rp.mac = port_configs[i].mac;
+		bpf_map_update_elem(bpf_map__fd(obj->maps.router_port),
+							&port_configs[i].key,
+							&rp,
+							BPF_ANY);
+	}
+
+	// 填充路由映射表
+	for (int i = 0; i < routing_entry_count; i++)
+	{
+		bpf_map_update_elem(bpf_map__fd(obj->maps.routing_table),
+							&routing_entries[i].key,
+							&routing_entries[i].value,
+							BPF_ANY);
+	}
+	for (int i = 0; i < ROUTER_PORT_COUNT; i++)
+	{
+		const char *ifname = router_ports[i].name;
+		int ifindex = router_ports[i].index;
+		obj->links.xdp_router_rx = bpf_program__attach_xdp(obj->progs.xdp_router_rx, ifindex);
+		if (!obj->links.xdp_router_rx)
+		{
+			err = -errno;
+			fprintf(stderr, "Failed to attach XDP program to interface %s: %s\n",
+					ifname, strerror(-err));
+			goto cleanup;
+		}
+		printf("成功将 XDP 程序附加到接口 %s\n", ifname);
+	}
 	pb = perf_buffer__new(bpf_map__fd(obj->maps.events), PERF_BUFFER_PAGES,
 						  handle_event, handle_lost_events, NULL, NULL);
 	if (signal(SIGINT, sig_int) == SIG_ERR)
@@ -111,6 +151,7 @@ int main(int argc, char **argv)
 	}
 
 cleanup:
+	cleanup_json_data();
 	router_bpf__destroy(obj);
 	return -err;
 }

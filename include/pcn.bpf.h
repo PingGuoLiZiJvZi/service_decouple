@@ -42,7 +42,7 @@ static __always_inline int pcn_pkt_controller(struct xdp_md *pkt,
 }
 static __always_inline int pcn_pkt_controller_with_metadata(struct xdp_md *pkt,
 															u16 reason,
-															u32 *mdata)
+															u32 mdata0, u32 mdata1, u32 mdata2)
 {
 	struct event_data event;
 	event.reason = reason;
@@ -50,9 +50,9 @@ static __always_inline int pcn_pkt_controller_with_metadata(struct xdp_md *pkt,
 	event.ingress_ifc = pkt->ingress_ifindex;
 	u64 flags = BPF_F_CURRENT_CPU;
 	flags |= (u64)event.packet_len << 32;
-	event.metadata[0] = mdata[0];
-	event.metadata[1] = mdata[1];
-	event.metadata[2] = mdata[2];
+	event.metadata[0] = mdata0;
+	event.metadata[1] = mdata1;
+	event.metadata[2] = mdata2;
 	bpf_perf_event_output(pkt, &events, flags, &event, sizeof(event));
 	return XDP_DROP;
 }

@@ -17,59 +17,6 @@
 #include "../include/pcn.bpf.h"
 #include <bpf/bpf_helpers.h>
 
-#define CHECK_MAC_DST
-#define ROUTING_TABLE_DIM 256
-#define ROUTER_PORT_N 32
-#define ARP_TABLE_DIM 1024
-#define MAX_SECONDARY_ADDRESSES 5 // also defined in bridge_ports.h
-#define TYPE_NOLOCALINTERFACE 0	  // used to compare the 'type' field in the rt_v
-#define TYPE_LOCALINTERFACE 1
-#define IP_CSUM_OFFSET (sizeof(struct eth_hdr) + offsetof(struct iphdr, check))
-#define ICMP_CSUM_OFFSET                             \
-	(sizeof(struct eth_hdr) + sizeof(struct iphdr) + \
-	 offsetof(struct icmphdr, checksum))
-#define MAC_MULTICAST_MASK 0x1ULL // network byte order
-enum
-{
-	SLOWPATH_ARP_REPLY = 1,
-	SLOWPATH_ARP_LOOKUP_MISS,
-	SLOWPATH_TTL_EXCEEDED,
-	SLOWPATH_PKT_FOR_ROUTER
-};
-/* Routing Table Key */
-struct rt_k
-{
-	u32 netmask_len;
-	__be32 network;
-};
-/* Routing Table Value
-the type field is used to know if the destination is one interface of the router
-*/
-struct rt_v
-{
-	u32 port;
-	__be32 nexthop;
-	u8 type;
-};
-/* Router Port, also defined in bridge_ports.h */
-struct r_port
-{
-	__be32 ip;
-	__be32 netmask;
-	__be32 secondary_ip[MAX_SECONDARY_ADDRESSES];
-	__be32 secondary_netmask[MAX_SECONDARY_ADDRESSES];
-	__be64 mac : 48;
-};
-// Converted from BPF_F_TABLE('lpm_trie', struct rt_k, struct rt_v, routing_table, ROUTING_TABLE_DIM, BPF_F_NO_PREALLOC)
-struct
-{
-	__uint(type, BPF_MAP_TYPE_LPM_TRIE);
-	__uint(max_entries, ROUTING_TABLE_DIM);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
-	__type(key, struct rt_k);
-	__type(value, struct rt_v);
-} routing_table SEC(".maps");
-
 /*
 Router Port table provides a way to simulate the physical interface of the
 router
@@ -98,26 +45,15 @@ struct
 	__type(key, u32);
 	__type(value, struct arp_entry);
 } arp_table SEC(".maps");
-// struct eth_hdr
-// {
-// 	__be64 dst : 48;
-// 	__be64 src : 48;
-// 	__be16 proto;
-// } __attribute__((packed));
-struct arp_hdr
-{
-	__be16 ar_hrd;		  /* format of hardware address	*/
-	__be16 ar_pro;		  /* format of protocol address	*/
-	unsigned char ar_hln; /* length of hardware address	*/
-	unsigned char ar_pln; /* length of protocol address	*/
-	__be16 ar_op;		  /* ARP opcode (command)		*/
-	__be64 ar_sha : 48;	  /* sender hardware address	*/
-	__be32 ar_sip;		  /* sender IP address		*/
-	__be64 ar_tha : 48;	  /* target hardware address	*/
-	__be32 ar_tip;		  /* target IP address		*/
-}
-__attribute__((packed));
 
+struct
+{
+	__uint(type, BPF_MAP_TYPE_LPM_TRIE);
+	__uint(max_entries, ROUTING_TABLE_DIM);
+	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__type(key, struct rt_k);
+	__type(value, struct rt_v);
+} routing_table SEC(".maps");
 /*the function checks if the packet is an ICMP ECHO REQUEST and source mac is
  * not equal to in_port mac, if it is true sends the
  * packet to the slowpath. The slowpath searchs if the destination ip is one of
@@ -132,11 +68,11 @@ static inline int send_packet_for_router_to_slowpath(struct xdp_md *ctx,
 	struct icmphdr *icmp = data + sizeof(*eth) + sizeof(*ip);
 	if (data + sizeof(*eth) + sizeof(*ip) + sizeof(*icmp) > data_end)
 		return XDP_DROP;
-	u32 mdata[3];
-	mdata[0] = ip->saddr;
-	mdata[1] = ip->daddr;
-	mdata[2] = ip->protocol;
-	pcn_pkt_controller_with_metadata(ctx, SLOWPATH_PKT_FOR_ROUTER, mdata);
+	// u32 mdata[3];
+	// mdata[0] = ip->saddr;
+	// mdata[1] = ip->daddr;
+	// mdata[2] = ip->protocol;
+	pcn_pkt_controller_with_metadata(ctx, SLOWPATH_PKT_FOR_ROUTER, ip->saddr, ip->daddr, ip->protocol);
 	return XDP_DROP;
 }
 static inline int send_icmp_ttl_time_exceeded(struct xdp_md *ctx,
@@ -145,9 +81,9 @@ static inline int send_icmp_ttl_time_exceeded(struct xdp_md *ctx,
 {
 	// pcn_log(ctx, LOG_DEBUG, "packet DROP (ttl = 0)");
 	LOG("packet DROP (ttl = 0)");
-	u32 mdata[3];
-	mdata[0] = ip_port;
-	pcn_pkt_controller_with_metadata(ctx, SLOWPATH_TTL_EXCEEDED, mdata);
+	// u32 mdata[3];
+	// mdata[0] = ip_port;
+	pcn_pkt_controller_with_metadata(ctx, SLOWPATH_TTL_EXCEEDED, ip_port, 0, 0);
 	return XDP_DROP;
 }
 static inline int arp_lookup_miss(struct xdp_md *ctx,
@@ -157,11 +93,11 @@ static inline int arp_lookup_miss(struct xdp_md *ctx,
 	LOG("arp lookup failed. Send to controller");
 
 	// Set metadata and send packet to slowpath
-	u32 mdata[3];
-	mdata[0] = dst_ip;
-	mdata[1] = out_port;
-	mdata[2] = ip_port;
-	pcn_pkt_controller_with_metadata(ctx, SLOWPATH_ARP_LOOKUP_MISS, mdata);
+	// u32 mdata[3];
+	// mdata[0] = dst_ip;
+	// mdata[1] = out_port;
+	// mdata[2] = ip_port;
+	pcn_pkt_controller_with_metadata(ctx, SLOWPATH_ARP_LOOKUP_MISS, dst_ip, out_port, ip_port);
 	return XDP_DROP;
 }
 static inline __u16 checksum(unsigned short *buf, int bufsz)
@@ -236,6 +172,7 @@ static inline int send_arp_reply(struct xdp_md *ctx,
 {
 	__be32 target_ip = arp->ar_tip;
 	__be32 sender = 0;
+	LOG("target_ip: %x,in_port_ip: %x", target_ip, in_port->ip);
 	if (target_ip == in_port->ip)
 		sender = in_port->ip;
 	else
@@ -244,8 +181,12 @@ static inline int send_arp_reply(struct xdp_md *ctx,
 		int pos = search_secondary_address(arr, target_ip);
 		if (pos > -1)
 			sender = arr[pos];
+
 		else
+		{
+			LOG("target_ip %x is not for me,drop packet", target_ip);
 			return XDP_DROP;
+		}
 	}
 
 	// pcn_log(ctx, LOG_DEBUG, "somebody is asking for my address");
@@ -282,9 +223,9 @@ static inline int notify_arp_reply_to_slowpath(struct xdp_md *ctx,
 	entry.port = ctx->ingress_ifindex;
 	// arp_table.update(&ip_, &entry);
 	// notify the slowpath. New arp reply received.
-	u32 mdata[3];
-	mdata[0] = ip_;
-	pcn_pkt_controller_with_metadata(ctx, SLOWPATH_ARP_REPLY, mdata);
+	// u32 mdata[3];
+	// mdata[0] = ip_;
+	pcn_pkt_controller_with_metadata(ctx, SLOWPATH_ARP_REPLY, ip_, 0, 0);
 	return XDP_DROP;
 }
 static inline int is_ether_mcast(__be64 mac_address)
@@ -303,8 +244,8 @@ int xdp_router_rx(struct xdp_md *ctx)
 
 	// pcn_log(ctx, LOG_TRACE, "in_port: %d, proto: 0x%x, mac_src: %M mac_dst: %M",
 	// 		md->in_port, htons(eth->proto), eth->src, eth->dst);
-	LOG("in_port: %d, proto: 0x%x, mac_src: %x mac_dst: %x",
-		ctx->ingress_ifindex, htons(eth->proto), eth->src, eth->dst);
+	LOG("in_port: %d, proto: 0x%x", ctx->ingress_ifindex, htons(eth->proto));
+	LOG("mac_src: %x mac_dst: %x", eth->src, eth->dst);
 
 	u16 in_port_index = ctx->ingress_ifindex;
 	// struct r_port *in_port = router_port.lookup(&in_port_index);
@@ -336,7 +277,10 @@ unicast address of the router port.  If not, drop the packet.
 	case ETH_P_ARP:
 		goto ARP; // arp packet
 	default:
+	{
+		LOG("unsupported ethertype 0x%x", htons(eth->proto));
 		goto DROP;
+	}
 	}
 IP:; // ipv4 packet
 	struct iphdr *ip = data + sizeof(*eth);
@@ -381,6 +325,7 @@ ARP:; // arp packet
 	struct arp_hdr *arp = data + sizeof(*eth);
 	if (data + sizeof(*eth) + sizeof(*arp) > data_end)
 		goto DROP;
+	LOG("arp op: %u", htons(arp->ar_op));
 	if (arp->ar_op == htons(ARPOP_REQUEST))
 	{ // arp request?
 		return send_arp_reply(ctx, eth, arp, in_port);
@@ -392,3 +337,5 @@ DROP:
 	LOG("in: %d out: -- DROP", ctx->ingress_ifindex);
 	return XDP_DROP;
 }
+char LICENSE[] SEC("license") = "GPL";
+__u32 _version SEC("version") = 1;

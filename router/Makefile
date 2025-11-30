@@ -116,9 +116,9 @@ $(OUTPUT)/%.o: %.c $(wildcard %.h) | $(OUTPUT)
 
 
 # Build application binary
-$(NAME): %: $(OUTPUT)/%.o $(LIBBPF_OBJ) | $(OUTPUT)
+$(NAME): %: $(OUTPUT)/%.o $(OUTPUT)/json_map.o $(LIBBPF_OBJ) | $(OUTPUT)
 	$(call msg,BINARY,$@)
-	$(Q)$(CC) $(CFLAGS) $^ $(ALL_LDFLAGS) -lelf -lz -o $@
+	$(Q)$(CC) $(CFLAGS) $^ $(ALL_LDFLAGS) -lelf -lz -ljson-c -o $@
 
 # delete failed targets
 .DELETE_ON_ERROR:

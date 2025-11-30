@@ -19,5 +19,20 @@
 #include <stdlib.h>
 #define PERF_BUFFER_PAGES 16
 #define PERF_POLL_TIMEOUT_MS 100
-void generate_icmp_ttl_exceeded();
+static void generate_icmp_ttl_exceed(struct event_data *event, char *packet_data)
+{
+	return;
+}
+static void generate_arp_reply(struct event_data *event, char *packet_data)
+{
+	return;
+}
+static void generate_arp_request(struct event_data *event, char *packet_data)
+{
+	return;
+}
+static void handle_router_pkt(struct event_data *event, char *packet_data)
+{
+	return;
+}
 #endif
