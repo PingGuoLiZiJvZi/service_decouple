@@ -2,7 +2,7 @@
 #define FDB_TIMEOUT 300
 #endif
 
-#include "pcn.bpf.h"
+#include "../include/pcn.bpf.h"
 
 struct fwd_entry
 {

@@ -1,6 +1,6 @@
 #include "simplebridge.skel.h"
-#include "simplebridge.h"
-#include "port.h"
+#include "../include/common.h"
+#include "../include/port.h"
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 #include <signal.h>
@@ -41,27 +41,27 @@ void do_flooding(struct event_data *e, char *packet_data)
 		return;
 	}
 	int packets_sent = 0;
-	for (int i = 0; i < PORT_COUNT; i++)
+	for (int i = 0; i < BRIDGE_PORT_COUNT; i++)
 	{
-		if (ports[i].index == e->ingress_ifc)
+		if (bridge_ports[i].index == e->ingress_ifc)
 		{
 			continue;
 		}
 		// 发送包数据
-		ssize_t sent = send(ports[i].socket, packet_data, e->packet_len, 0);
+		ssize_t sent = send(bridge_ports[i].socket, packet_data, e->packet_len, 0);
 		if (sent < 0)
 		{
 			fprintf(stderr, "Send failed on %s: %s\n",
-					ports[i].name, strerror(errno));
+					bridge_ports[i].name, strerror(errno));
 		}
 		else if (sent != e->packet_len)
 		{
 			fprintf(stderr, "Partial send on %s: %zd/%u bytes\n",
-					ports[i].name, sent, e->packet_len);
+					bridge_ports[i].name, sent, e->packet_len);
 		}
 		else
 		{
-			printf("Forwarded packet to %s (ifc=%d)\n", ports[i].name, ports[i].index);
+			printf("Forwarded packet to %s (ifc=%d)\n", bridge_ports[i].name, bridge_ports[i].index);
 			packets_sent++;
 		}
 	}
@@ -94,7 +94,7 @@ int main(int argc, char **argv)
 	struct perf_buffer *pb = NULL;
 	struct simplebridge_bpf *obj;
 	int err;
-	if (init_ports())
+	if (init_bridge_ports())
 	{
 		fprintf(stderr, "Failed to initialize port\n");
 		return 1;
@@ -119,10 +119,10 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Failed to attach BPF skeleton\n");
 		goto cleanup;
 	}
-	for (int i = 0; i < PORT_COUNT; i++)
+	for (int i = 0; i < BRIDGE_PORT_COUNT; i++)
 	{
-		const char *ifname = ports[i].name;
-		int ifindex = ports[i].index;
+		const char *ifname = bridge_ports[i].name;
+		int ifindex = bridge_ports[i].index;
 		obj->links.xdp_simplebridge_rx = bpf_program__attach_xdp(obj->progs.xdp_simplebridge_rx, ifindex);
 		if (!obj->links.xdp_simplebridge_rx)
 		{
