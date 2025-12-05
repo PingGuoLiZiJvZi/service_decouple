@@ -4,7 +4,7 @@
             "network": 4261478410
         },
         "value": {
-            "port": 0,
+            "port": 584,
             "nexthop": 0,
             "type": 1
         }
@@ -14,7 +14,7 @@
             "network": 65546
         },
         "value": {
-            "port": 0,
+            "port": 584,
             "nexthop": 0,
             "type": 0
         }
@@ -24,7 +24,7 @@
             "network": 4261543946
         },
         "value": {
-            "port": 1,
+            "port": 586,
             "nexthop": 0,
             "type": 1
         }
@@ -34,7 +34,7 @@
             "network": 131082
         },
         "value": {
-            "port": 1,
+            "port": 586,
             "nexthop": 0,
             "type": 0
         }
@@ -44,7 +44,7 @@
             "network": 4261609482
         },
         "value": {
-            "port": 2,
+            "port": 588,
             "nexthop": 0,
             "type": 1
         }
@@ -54,7 +54,7 @@
             "network": 196618
         },
         "value": {
-            "port": 2,
+            "port": 588,
             "nexthop": 0,
             "type": 0
         }

@@ -123,12 +123,10 @@ int main(int argc, char **argv)
 	{
 		const char *ifname = bridge_ports[i].name;
 		int ifindex = bridge_ports[i].index;
-		obj->links.xdp_simplebridge_rx = bpf_program__attach_xdp(obj->progs.xdp_simplebridge_rx, ifindex);
-		if (!obj->links.xdp_simplebridge_rx)
+		err = bpf_xdp_attach(ifindex, bpf_program__fd(obj->progs.xdp_simplebridge_rx), XDP_FLAGS_SKB_MODE, NULL);
+		if (err)
 		{
-			err = -errno;
-			fprintf(stderr, "Failed to attach XDP program to interface %s: %s\n",
-					ifname, strerror(-err));
+			fprintf(stderr, "Failed to attach XDP program to interface %s: %s\n", ifname, strerror(-err));
 			goto cleanup;
 		}
 		printf("成功将 XDP 程序附加到接口 %s\n", ifname);

@@ -1,6 +1,7 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 #define REASON_FLOODING 0x01
+#define XDP_FLAGS_SKB_MODE 1U << 1
 #define ARPOP_REQUEST 1
 #define ARPOP_REPLY 2
 #define ETH_P_IP 0x0800

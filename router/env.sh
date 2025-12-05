@@ -35,11 +35,13 @@ cleanup(){
 }
 
 test(){
-	sudo ip netns exec ns1 ping -c3 10.0.0.2
-	sudo ip netns exec ns2 ping -c3 10.0.0.3
-	sudo ip netns exec ns3 ping -c3 10.0.0.1
+	sudo ip netns exec ns1 ping -c3 10.0.2.1
+	sudo ip netns exec ns2 ping -c3 10.0.3.1
+	sudo ip netns exec ns3 ping -c3 10.0.1.1
 }
-
+timeout(){
+	sudo ip netns exec ns1 ping -c 3 -t 1 10.0.2.1
+}
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     "$@"          # 把第一个参数当函数名，其余当参数
 fi

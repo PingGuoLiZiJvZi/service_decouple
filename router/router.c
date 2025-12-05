@@ -57,7 +57,7 @@ int main(int argc, char **argv)
 	struct perf_buffer *pb = NULL;
 	struct router_bpf *obj;
 	int err;
-
+	init_packet_map();
 	if (init_json_data("/mnt/disk1/zhouchenxi/service_decouple/router/map_json_1_3"))
 	{
 		fprintf(stderr, "Failed to initialize JSON data\n");
@@ -100,7 +100,13 @@ int main(int argc, char **argv)
 			rp.secondary_ip[j] = port_configs[i].secondary_ip[j];
 			rp.secondary_netmask[j] = port_configs[i].secondary_netmask[j];
 		}
-		rp.mac = port_configs[i].mac;
+		rp.mac = get_router_port_mac_by_index(port_configs[i].key);
+		if (rp.mac == 0)
+		{
+			fprintf(stderr, "Failed to get MAC address for port index %d\n", port_configs[i].key);
+			goto cleanup;
+		}
+
 		bpf_map_update_elem(bpf_map__fd(obj->maps.router_port),
 							&port_configs[i].key,
 							&rp,
@@ -119,12 +125,10 @@ int main(int argc, char **argv)
 	{
 		const char *ifname = router_ports[i].name;
 		int ifindex = router_ports[i].index;
-		obj->links.xdp_router_rx = bpf_program__attach_xdp(obj->progs.xdp_router_rx, ifindex);
-		if (!obj->links.xdp_router_rx)
+		err = bpf_xdp_attach(ifindex, bpf_program__fd(obj->progs.xdp_router_rx), XDP_FLAGS_SKB_MODE, NULL);
+		if (err)
 		{
-			err = -errno;
-			fprintf(stderr, "Failed to attach XDP program to interface %s: %s\n",
-					ifname, strerror(-err));
+			fprintf(stderr, "Failed to attach XDP program to interface %s: %s\n", ifname, strerror(-err));
 			goto cleanup;
 		}
 		printf("成功将 XDP 程序附加到接口 %s\n", ifname);

@@ -75,7 +75,6 @@ int xdp_simplebridge_rx(struct xdp_md *ctx)
 		goto DO_FLOODING;
 	}
 	LOG("Entry is valid. FORWARDING");
-
 FORWARD:;
 	__u32 dst_interface = entry->port;
 
@@ -86,7 +85,6 @@ FORWARD:;
 		return XDP_DROP;
 	}
 	LOG("Redirect packet to port %d", dst_interface);
-
 	return pcn_pkt_redirect(ctx, dst_interface);
 
 DO_FLOODING:
