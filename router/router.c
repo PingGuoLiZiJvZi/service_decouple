@@ -58,7 +58,7 @@ int main(int argc, char **argv)
 	struct router_bpf *obj;
 	int err;
 	init_packet_map();
-	if (init_json_data("/mnt/disk1/zhouchenxi/service_decouple/router/map_json_1_3"))
+	if (init_json_data("..//router/map_json_1_3"))
 	{
 		fprintf(stderr, "Failed to initialize JSON data\n");
 		return 1;

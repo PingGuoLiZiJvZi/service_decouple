@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 OUTPUT := .output
 CLANG ?= clang
-BOOT_STRAP_PATH = $(abspath /mnt/disk1/zhouchenxi/service_decouple/libbpf-bootstrap)
+BOOT_STRAP_PATH = $(abspath ..//libbpf-bootstrap)
 LIBBPF_SRC := $(BOOT_STRAP_PATH)/libbpf/src
 BPFTOOL_SRC := $(BOOT_STRAP_PATH)/bpftool/src
 LIBBPF_OBJ := $(abspath $(OUTPUT)/libbpf.a)

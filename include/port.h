@@ -11,8 +11,7 @@
 #include <sys/ioctl.h>
 #include <linux/if.h>
 
-#define BRIDGE_PORT_COUNT 4
-#define ROUTER_PORT_COUNT 3
+
 struct port
 {
 	char name[16];
@@ -20,17 +19,20 @@ struct port
 	int socket;
 	unsigned long long mac;
 };
-struct port bridge_ports[BRIDGE_PORT_COUNT] = {
+struct port bridge_ports[] = {
 	{"veth0_bridge", 0, -1, 0},
 	{"veth1_bridge", 0, -1, 0},
 	{"veth2_bridge", 0, -1, 0},
 	{"veth3_bridge", 0, -1, 0},
 };
-struct port router_ports[ROUTER_PORT_COUNT] = {
+struct port router_ports[] = {
 	{"veth1_router", 0, -1, 0},
 	{"veth2_router", 0, -1, 0},
 	{"veth3_router", 0, -1, 0},
 };
+
+#define BRIDGE_PORT_COUNT sizeof(bridge_ports) / sizeof(bridge_ports[0])
+#define ROUTER_PORT_COUNT sizeof(router_ports) / sizeof(router_ports[0])
 
 unsigned long long get_interface_mac(const char *interface_name)
 {
